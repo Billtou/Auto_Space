@@ -1,0 +1,867 @@
+substitutions:
+  name: "auto-space-c3c8cc"
+  friendly_name: "Auto Space c3c8cc"
+  upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D PanasonicPIR RELAY"
+  project_name: "Taiwan Smart Home Technology.Auto Space One"
+  project_version: "1.0"  
+  temperature_offset: "0"
+  humidity_offset: "0"  
+  temperature_update_interval: "60s"
+  wifi_signal_update_interval: "600s"    
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+  platformio_options:
+    board_build.flash_mode: dio
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  comment: ${upper_devicename}   
+
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+# Allow Over-The-Air updates
+ota:
+
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  # Set up a wifi access point
+  ap: {}
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+dashboard_import:
+  package_import_url: github://esphome/firmware/esphome-web/esp32s3.yaml@v2
+  import_full_config: true
+
+# Sets up Bluetooth LE (Only on ESP32) to allow the user
+# to provision wifi credentials to the device.
+esp32_improv:
+  authorizer: none
+
+# To have a "next url" for improv serial
+web_server:
+
+i2c:
+  - id: bus_lx
+    sda: GPIO35
+    scl: GPIO36
+    scan: true
+  - id: bus_tehu
+    sda: GPIO38
+    scl: GPIO37
+    scan: true
+
+uart:
+  id: uart_mmwave
+  tx_pin: 17
+  rx_pin: 18
+  baud_rate: 256000
+  parity: NONE
+  stop_bits: 1  
+
+ld2410:
+
+globals:
+  - id: occupancy_last_off_time
+    type: time_t
+    initial_value: '0'
+
+interval:
+  - interval: 60s
+    then:
+      - script.execute: check_occupancy_status
+
+
+time:
+  - platform: homeassistant
+    id: ha_time 
+
+script:
+  - id: check_occupancy_status
+    mode: queued
+    then:
+      - if:
+          condition:
+            binary_sensor.is_off: occupancy
+          then:
+            - lambda: |-
+                // 获取当前时间
+                time_t now = id(ha_time).now().timestamp;
+                // 检查是否已经关闭5分钟  手動沒打開 並且是乾燥的狀態
+                if (now - id(occupancy_last_off_time) >= 300 && !id(manual_mode).state  && !id(dehumidity_sensor).state ){
+                  // occupancy 已经关闭5分钟,在这里执行你的动作
+                 id(occupancy_timeout).turn_off();
+                }
+          else:
+            - lambda: |-
+                // relay_1 开启时重置计时
+                id(occupancy_last_off_time) = id(ha_time).now().timestamp;
+
+sensor:
+  - platform: bh1750
+    i2c_id: bus_lx
+    id: illuminance
+    name: "BH1750 Illuminance"
+    address: 0x23
+    update_interval: 5s
+  - platform: htu21d
+    model: htu21d
+    i2c_id: bus_tehu
+    temperature:
+      name: "Temperature"
+      accuracy_decimals: 1      
+      id: temperature      
+      filters:
+        - offset: ${temperature_offset}
+        - lambda: "return x + id(temperature_offset_ui).state;"        
+    humidity:
+      name: "Humidity"
+      accuracy_decimals: 1      
+      id: humidity      
+      filters:
+        - offset: ${humidity_offset}
+        - lambda: "return x + id(humidity_offset_ui).state;"
+      on_value:
+        then:
+          - if:
+              condition:
+                lambda: 'return !id(occupancy_timeout).state and !id(manual_mode).state ;'
+              then:        
+                - switch.turn_off: relay_2
+
+  - platform: ld2410
+    still_energy:
+      name: Still Energy
+      internal: true
+    g0:
+      still_energy:
+        name: g0 still energy
+        internal: true
+    g1:
+      still_energy:
+        name: g1 still energy
+        internal: true
+    g2:
+      still_energy:
+        name: g2 still energy
+        internal: true
+    g3:
+      still_energy:
+        name: g3 still energy
+        internal: true
+    g4:
+      still_energy:
+        name: g4 still energy
+        internal: true
+    g5:
+      still_energy:
+        name: g5 still energy
+        internal: true
+    g6:
+      still_energy:
+        name: g6 still energy
+        internal: true
+    g7:
+      still_energy:
+        name: g7 still energy
+        internal: true
+    g8:
+      still_energy:
+        name: g8 still energy
+        internal: true
+
+  - platform: wifi_signal
+    name: "Signal"
+    update_interval: ${wifi_signal_update_interval}  
+
+
+switch:
+  - platform: gpio  #light
+    id: relay_1
+    pin: 8
+    name: "Relay_1"  
+  - platform: gpio  #fan
+    id: relay_2
+    pin: 9
+    name: "Relay_2"    
+
+  - platform: template
+    name: "occupancy_timeout"
+    id: occupancy_timeout
+    icon: mdi:link-variant
+    optimistic: true
+    # internal: true
+    entity_category: config
+    on_turn_on:
+      then:
+      - switch.turn_on: occupancy_timeout
+    on_turn_off:
+      then:
+      - switch.turn_off: occupancy_timeout  
+
+  - platform: template
+    name: "Manual_Mode"
+    id: manual_mode
+    icon: mdi:link-variant
+    optimistic: true
+    entity_category: config
+    on_turn_on:
+      then:
+      - switch.turn_on: manual_mode
+    on_turn_off:
+      then:
+      - switch.turn_off: manual_mode  
+
+  - platform: template
+    name: "decouple_relay_1"
+    id: decouple_1
+    icon: mdi:link-variant
+    optimistic: true
+    entity_category: config
+    on_turn_on:
+      then:
+      - switch.turn_on: decouple_1
+    on_turn_off:
+      then:
+      - switch.turn_off: decouple_1  
+
+  - platform: template
+    name: "decouple_relay_2"
+    id: decouple_2
+    icon: mdi:link-variant
+    optimistic: true
+    entity_category: config
+    on_turn_on:
+      then:
+      - switch.turn_on: decouple_2
+    on_turn_off:
+      then:
+      - switch.turn_off: decouple_2    
+
+  - platform: ld2410
+    engineering_mode:
+      name: "engineering mode"
+    bluetooth:
+      name: "control bluetooth"  
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      name: Presence
+      internal: true
+      id: mmwave      
+    has_still_target:
+      name: Still Target
+      internal: true
+
+  - platform: gpio
+    pin: 16
+    name: mmWave pin presence
+    device_class: presence
+    id: gpio_out_pin_presence
+    # internal: true
+  - platform: gpio
+    pin:
+      number: 13
+      mode: INPUT_PULLDOWN
+    name: pir_1
+    id: pir_sensor_1
+    device_class: motion
+    filters:
+      - delayed_off:  !lambda 'return id(pir_off_latency_ui).state * 1000.0;'
+      
+  - platform: gpio
+    pin:
+      number: 14
+      mode: INPUT_PULLDOWN
+    name: pir_2
+    id: pir_sensor_2
+    device_class: motion
+    filters:
+      - delayed_off:  !lambda 'return id(pir_off_latency_ui).state * 1000.0;'
+
+  - platform: gpio
+    id: binary_sensor_1
+    name: "binary_sensor_1"
+    pin:
+      number: 10
+      inverted: true
+      mode: INPUT_PULLUP
+    on_state:
+      then:
+        - if:
+            condition:    
+              lambda: 'return !id(decouple_1).state;'
+            then:
+              - delay: 40ms
+              - switch.toggle: relay_1
+
+  - platform: gpio
+    id: binary_sensor_2
+    name: "binary_sensor_2"
+    pin:
+      number: 11
+      inverted: true
+      mode: INPUT_PULLUP
+    on_state:
+      then:
+        - if:
+            condition:    
+              lambda: 'return !id(decouple_2).state;'
+            then: 
+              - delay: 40ms              
+              - switch.toggle: relay_2  
+
+  - platform: template
+    name: "Dehumidity"
+    device_class: moisture
+    id: dehumidity_sensor
+    lambda: |-
+      float dehumidity = id(humidity).state; // Replace with your actual humidity sensor reading
+      float high_threshold = id(reduce_thresholdy_ui).state;
+      float low_threshold =  id(reduce_thresholdy_ui).state - id(below_thresholdy_ui).state;
+      if (dehumidity > high_threshold) {
+        return true;
+      } else if (dehumidity <= low_threshold) {
+        return false;
+      }
+      return id(dehumidity_sensor).state; // Maintain the previous state otherwise
+
+
+  - platform: template
+    name: "Ambient Light"
+    # device_class: light
+    id: ambient_light_sensor
+    lambda: |-
+      float illuminance_sensor = id(illuminance).state; // Replace with your actual humidity sensor reading
+      float below_threshold = id(ambient_light_Below_ui).state;
+      if (illuminance_sensor > below_threshold) {
+        return false;
+      } else {
+        return true;
+      }
+      return id(ambient_light_sensor).state; // Maintain the previous state otherwise
+
+  - platform: template
+    name: Occupancy
+    id: occupancy
+    device_class: occupancy
+    filters:
+      - delayed_off: !lambda 'return id(occupancy_off_latency_ui).state * 1000.0;'
+    lambda: |-
+      if ( id(pir_sensor_1).state or id(pir_sensor_2).state) {
+        return true;
+      } 
+      else if (id(gpio_out_pin_presence).state == 0 and id(pir_sensor_1).state == 0 and id(pir_sensor_2).state == 0) {
+        return false;
+      } 
+      else {
+        return id(occupancy).state;
+      }
+    on_state:
+      then:
+        - if:
+            condition:  #有人，非手動，亮度不夠 開燈
+              lambda: 'return id(occupancy).state && !id(manual_mode).state && id(ambient_light_sensor).state;'
+            then:        
+              - switch.turn_on: relay_1
+            else:
+              - switch.turn_off: relay_1  
+        - if:
+            condition: #有人一律 開風扇
+              lambda: 'return id(occupancy).state && !id(manual_mode).state;'
+            then:        
+              - switch.turn_on: relay_2
+              - switch.turn_on: occupancy_timeout
+
+number:
+# TEMPERATURE OFFSET
+  - platform: template
+    name: "Temperature Offset"
+    id: temperature_offset_ui
+    unit_of_measurement: "°C"
+    min_value: -20
+    max_value: 20
+    step: 0.1
+    mode: box
+    update_interval: never
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    icon: "mdi:thermometer"
+    entity_category: config       
+# HUMIDITY OFFSET    
+  - platform: template
+    name: "Humidity Offset"
+    id: humidity_offset_ui
+    unit_of_measurement: "%"
+    min_value: -50
+    max_value: 50
+    step: 0.1
+    mode: box
+    update_interval: never
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    icon: "mdi:water-percent"
+    entity_category: config               
+# PIR DELAYED OFF       
+  - platform: template
+    name: "PIR off latency"
+    icon: mdi:clock-end
+    entity_category: config
+    id: pir_off_latency_ui
+    min_value: 1
+    max_value: 120
+    initial_value: 10
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: slider    
+
+  - platform: template
+    name: "Dehumidity Threshold"
+    icon: mdi:clock-end
+    entity_category: config
+    id: reduce_thresholdy_ui
+    min_value: 50
+    max_value: 75
+    initial_value: 60
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: "%"
+    mode: slider  
+
+  - platform: template
+    name: "Dehumidity Below Threshold"
+    icon: mdi:clock-end
+    entity_category: config
+    id: below_thresholdy_ui
+    min_value: 2
+    max_value: 10
+    initial_value: 3
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: "%"
+    mode: slider    
+
+  - platform: template
+    name: "Ambient Light Below"
+    icon: mdi:brightness-6
+    entity_category: config
+    id: ambient_light_Below_ui
+    min_value: 0
+    max_value: 1600
+    initial_value: 50
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: lx
+    mode: slider   
+
+
+  - platform: template
+    name: "Occupancy off latency"
+    icon: mdi:clock-end
+    entity_category: config
+    id: occupancy_off_latency_ui
+    min_value: 1
+    max_value: 600
+    initial_value: 15
+    optimistic: true
+    step: 5
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: slider   
+
+  - platform: ld2410
+    timeout:
+      name: timeout
+      internal: true
+    max_move_distance_gate:
+      name: max move distance gate
+      internal: true
+    max_still_distance_gate:
+      name: max still distance gate
+    g0:
+      move_threshold:
+        name: g0 move threshold
+        id: g0_move_threshold
+        internal: true
+      still_threshold:
+        name: g0 still threshold
+        id: g0_still_threshold
+        internal: true
+    g1:
+      move_threshold:
+        name: g1 move threshold
+        id: g1_move_threshold
+        internal: true
+      still_threshold:
+        name: g1 still threshold
+        id: g1_still_threshold
+        internal: true
+    g2:
+      move_threshold:
+        name: g2 move threshold
+        id: g2_move_threshold
+        internal: true
+      still_threshold:
+        name: g2 still threshold
+        id: g2_still_threshold
+        internal: true
+    g3:
+      move_threshold:
+        name: g3 move threshold
+        id: g3_move_threshold
+        internal: true
+      still_threshold:
+        name: g3 still threshold
+        id: g3_still_threshold
+        internal: true
+    g4:
+      move_threshold:
+        name: g4 move threshold
+        id: g4_move_threshold
+        internal: true
+      still_threshold:
+        name: g4 still threshold
+        id: g4_still_threshold
+        internal: true
+    g5:
+      move_threshold:
+        name: g5 move threshold
+        id: g5_move_threshold
+        internal: true
+      still_threshold:
+        name: g5 still threshold
+        id: g5_still_threshold
+        internal: true
+    g6:
+      move_threshold:
+        name: g6 move threshold
+        id: g6_move_threshold
+        internal: true
+      still_threshold:
+        name: g6 still threshold
+        id: g6_still_threshold
+        internal: true
+    g7:
+      move_threshold:
+        name: g7 move threshold
+        id: g7_move_threshold
+        internal: true
+      still_threshold:
+        name: g7 still threshold
+        id: g7_still_threshold
+        internal: true
+    g8:
+      move_threshold:
+        name: g8 move threshold
+        id: g8_move_threshold
+        internal: true
+      still_threshold:
+        name: g8 still threshold
+        id: g8_still_threshold  
+        internal: true  
+
+select:
+  - platform: ld2410
+    distance_resolution:
+      name: "distance resolution"
+    light_function:
+      name: light function
+      internal: true
+
+    out_pin_level:
+      name: out pin level  
+      internal: true 
+
+button:
+  - platform: ld2410
+    factory_reset:
+      name: "factory reset"
+      internal: true
+    restart:
+      name: "Restart"
+    query_params:
+      name: query params   
+      internal: true
+       
+  # - platform: template
+  #   name: "Move Presets 1"
+  #   id: move_presets_1   
+  #   icon: "mdi:signal-cellular-1"   
+  #   entity_category: config
+  #   on_press:
+  #     then:
+  #       - number.set:
+  #           id: g0_move_threshold
+  #           value: 60 
+  #       - number.set:
+  #           id: g1_move_threshold
+  #           value: 60 
+  #       - number.set:
+  #           id: g2_move_threshold
+  #           value: 48 
+  #       - number.set:
+  #           id: g3_move_threshold
+  #           value: 36 
+  #       - number.set:
+  #           id: g4_move_threshold
+  #           value: 24 
+  #       - number.set:
+  #           id: g5_move_threshold
+  #           value: 18 
+  #       - number.set:
+  #           id: g6_move_threshold
+  #           value: 18 
+  #       - number.set:
+  #           id: g7_move_threshold
+  #           value: 18 
+  #       - number.set:
+  #           id: g8_move_threshold
+  #           value: 18                                                                                     
+
+  # - platform: template
+  #   name: "Move Presets 2"
+  #   id: move_presets_2   
+  #   icon: "mdi:signal-cellular-2"   
+  #   entity_category: config
+  #   on_press:
+  #     then:
+  #       - number.set:
+  #           id: g0_move_threshold
+  #           value: 50 
+  #       - number.set:
+  #           id: g1_move_threshold
+  #           value: 50 
+  #       - number.set:
+  #           id: g2_move_threshold
+  #           value: 40 
+  #       - number.set:
+  #           id: g3_move_threshold
+  #           value: 30 
+  #       - number.set:
+  #           id: g4_move_threshold
+  #           value: 20 
+  #       - number.set:
+  #           id: g5_move_threshold
+  #           value: 15 
+  #       - number.set:
+  #           id: g6_move_threshold
+  #           value: 15 
+  #       - number.set:
+  #           id: g7_move_threshold
+  #           value: 15 
+  #       - number.set:
+  #           id: g8_move_threshold
+  #           value: 15 
+
+  # - platform: template
+  #   name: "Move Presets 3"
+  #   id: move_presets_3   
+  #   icon: "mdi:signal-cellular-3"   
+  #   entity_category: config
+  #   on_press:
+  #     then:
+  #       - number.set:
+  #           id: g0_move_threshold
+  #           value: 45 
+  #       - number.set:
+  #           id: g1_move_threshold
+  #           value: 45 
+  #       - number.set:
+  #           id: g2_move_threshold
+  #           value: 36 
+  #       - number.set:
+  #           id: g3_move_threshold
+  #           value: 27 
+  #       - number.set:
+  #           id: g4_move_threshold
+  #           value: 18 
+  #       - number.set:
+  #           id: g5_move_threshold
+  #           value: 13 
+  #       - number.set:
+  #           id: g6_move_threshold
+  #           value: 13 
+  #       - number.set:
+  #           id: g7_move_threshold
+  #           value: 13 
+  #       - number.set:
+  #           id: g8_move_threshold
+  #           value: 13 
+
+
+  - platform: template
+    name: "Still Presets 1"
+    id: still_presets_1   
+    icon: "mdi:signal-cellular-1"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - number.set:
+            id: g2_still_threshold
+            value: 48 
+        - number.set:
+            id: g3_still_threshold
+            value: 48 
+        - number.set:
+            id: g4_still_threshold
+            value: 36 
+        - number.set:
+            id: g5_still_threshold
+            value: 36 
+        - number.set:
+            id: g6_still_threshold
+            value: 24 
+        - number.set:
+            id: g7_still_threshold
+            value: 24 
+        - number.set:
+            id: g8_still_threshold
+            value: 24 
+
+  - platform: template
+    name: "Still Presets 2"
+    id: still_presets_2   
+    icon: "mdi:signal-cellular-2"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - number.set:
+            id: g2_still_threshold
+            value: 40 
+        - number.set:
+            id: g3_still_threshold
+            value: 40 
+        - number.set:
+            id: g4_still_threshold
+            value: 30 
+        - number.set:
+            id: g5_still_threshold
+            value: 30 
+        - number.set:
+            id: g6_still_threshold
+            value: 20 
+        - number.set:
+            id: g7_still_threshold
+            value: 20 
+        - number.set:
+            id: g8_still_threshold
+            value: 20 
+
+  - platform: template
+    name: "Still Presets 3"
+    id: still_presets_3   
+    icon: "mdi:signal-cellular-3"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - number.set:
+            id: g2_still_threshold
+            value: 36 
+        - number.set:
+            id: g3_still_threshold
+            value: 36 
+        - number.set:
+            id: g4_still_threshold
+            value: 27 
+        - number.set:
+            id: g5_still_threshold
+            value: 27 
+        - number.set:
+            id: g6_still_threshold
+            value: 18 
+        - number.set:
+            id: g7_still_threshold
+            value: 18 
+        - number.set:
+            id: g8_still_threshold
+            value: 18        
+  - platform: template
+    name: "Still Presets 4"
+    id: still_presets_4   
+    icon: "mdi:signal-cellular-3"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - number.set:
+            id: g2_still_threshold
+            value: 34 
+        - number.set:
+            id: g3_still_threshold
+            value: 34 
+        - number.set:
+            id: g4_still_threshold
+            value: 25 
+        - number.set:
+            id: g5_still_threshold
+            value: 25 
+        - number.set:
+            id: g6_still_threshold
+            value: 16 
+        - number.set:
+            id: g7_still_threshold
+            value: 16 
+        - number.set:
+            id: g8_still_threshold
+            value: 16             
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP"      
+      icon: "mdi:ip-outline"
+    ssid:
+      name: "SSID"
+      icon: "mdi:router-wireless"
+    mac_address:
+      name: "MAC"
+      icon: "mdi:lan"
+  - platform: version
+    name: "Firmware"                    
