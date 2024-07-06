@@ -1,16 +1,26 @@
 substitutions:
-  name: "auto-space-lite-c3c8c8"
-  friendly_name: Auto Space Lite c3c8c8
+  name: "auto-space-62d12c"
+  friendly_name: Auto Space 62d12c
+  upper_devicename: "ESP32-S3 LD2410C 1WAY RELAY"
+  project_name: "Taiwan Smart Home Technology.Auto Space Lite"
+  project_version: "1.0"  
+  temperature_offset: "0"
+  humidity_offset: "0"  
+  illuminance_update_interval: "2s"
+  temperature_update_interval: "60s"
+  wifi_signal_update_interval: "600s"    
 
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  name_add_mac_suffix: false
+  name_add_mac_suffix: False
   platformio_options:
     board_build.flash_mode: dio
   project:
-    name: esphome.web
-    version: '1.0'
+    name: "${project_name}"
+    version: "${project_version}"
+  comment: ${upper_devicename}   
+
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -25,6 +35,7 @@ api:
 
 # Allow Over-The-Air updates
 ota:
+  - platform: esphome
 
 # Allow provisioning Wi-Fi via serial
 improv_serial:
@@ -45,9 +56,13 @@ dashboard_import:
 # to provision wifi credentials to the device.
 esp32_improv:
   authorizer: none
-
+  
+bluetooth_proxy:
+  active: true
 # To have a "next url" for improv serial
 web_server:
+  port: 80
+  version: 3
 
 uart:
   id: uart_mmwave
@@ -55,228 +70,268 @@ uart:
   rx_pin: 18
   baud_rate: 256000
   parity: NONE
-  stop_bits: 1  
+  stop_bits: 1
 
-ld2410:
+ld2410:     
 
 binary_sensor:
   - platform: ld2410
     has_target:
-      name: Presence
-      internal: true
+      name: "Occupancy 佔用"
     has_moving_target:
-      name: Moving Target
-      internal: true
+      name: "Moving Target 移動目標"
     has_still_target:
-      name: Still Target
-      internal: true
+      name: "Still Target 靜態目標"
+    # out_pin_presence_status:
+    #   name: presence status 光照判斷
+    #   icon: mdi:theme-light-dark
 
   - platform: gpio
-    pin: 16
+    pin: GPIO16
+    icon: mdi:theme-light-dark
+    name: "Light Occupancy 光照判斷"
     id: gpio_out_pin_presence
-    name: mmWave pin presence
     device_class: presence
     on_state:
       then:
         - if:
-            condition:
-              lambda: 'return !id(manual_mode).state;'
+            condition:  # 有人，非手動，亮度不夠 開燈
+              lambda: 'return id(gpio_out_pin_presence).state && !id(decouple_1).state ;'       
+            then:        
+              - switch.turn_on: relay_1
+        - if:
+            condition:  # 有人，非手動，亮度不夠 開燈
+              lambda: 'return !id(gpio_out_pin_presence).state && !id(decouple_1).state ;'         
+            then:        
+              - switch.turn_off: relay_1    
+
+  - platform: gpio
+    id: binary_sensor_1
+    name: "binary_sensor_1 開關訊號"
+    icon: mdi:toggle-switch-variant-off
+    pin:
+      number: 9
+      inverted: true
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 40ms
+      - delayed_off: 40ms      
+    on_state:
+      then:
+        - if:
+            condition:    
+              lambda: 'return !id(decouple_1).state;'
             then:
-              - if:
-                  condition:
-                    lambda: 'return id(gpio_out_pin_presence).state;'
-                  then:
-                    - switch.turn_on: relay_1    
-                  else:
-                    - switch.turn_off: relay_1   
-
-sensor:
-  - platform: ld2410
-    light:
-      name: light
-    moving_distance:
-      name : Moving Distance
-      internal: true
-    still_distance:
-      name: Still Distance
-      internal: true
-    moving_energy:
-      name: Move Energy
-      internal: true
-    still_energy:
-      name: Still Energy
-      internal: true
-    detection_distance:
-      name: Detection Distance
-      internal: true
-    g0:
-      still_energy:
-        name: g0 still energy
-        internal: true
-    g1:
-      still_energy:
-        name: g1 still energy
-        internal: true
-    g2:
-      still_energy:
-        name: g2 still energy
-        internal: true
-    g3:
-      still_energy:
-        name: g3 still energy
-        internal: true
-    g4:
-      still_energy:
-        name: g4 still energy
-        internal: true
-    g5:
-      still_energy:
-        name: g5 still energy
-        internal: true
-    g6:
-      still_energy:
-        name: g6 still energy
-        internal: true
-    g7:
-      still_energy:
-        name: g7 still energy
-        internal: true
-    g8:
-      still_energy:
-        name: g8 still energy
-        internal: true
-
+              - delay: 40ms
+              - switch.toggle: relay_1
 switch:
   - platform: ld2410
     engineering_mode:
-      name: "engineering mode"
+      name: "engineering mode 工程模式"
     bluetooth:
-      name: "control bluetooth"
+      name: "control bluetooth 藍芽控制"
       internal: true
-
   - platform: gpio  #light
     id: relay_1
-    pin: 37
-    name: "Relay_1"  
+    icon: mdi:electric-switch
+    pin: 8
+    name: "Relay_1 繼電器" 
 
   - platform: template
-    name: "Manual_Mode"
-    id: manual_mode
+    name: "decouple_relay_1 解藕"
+    id: decouple_1
     icon: mdi:link-variant
     optimistic: true
     entity_category: config
     on_turn_on:
       then:
-      - switch.turn_on: manual_mode
+      - switch.turn_on: decouple_1
     on_turn_off:
       then:
-      - switch.turn_off: manual_mode        
-
+      - switch.turn_off: decouple_1    
+       
+sensor:
+  - platform: ld2410
+    light:
+      name: "Light 光照度"
+    moving_distance:
+      name : "Moving Distance 移態動距離"
+    still_distance:
+      name: "Still Distance 靜態距離"
+    moving_energy:
+      name: "Move Energy 移動量能"
+    still_energy:
+      name: "Still Energy 靜態量能"
+    detection_distance:
+      name: "Detection Distance 檢測距離"
+    g0:
+      move_energy:
+        name: "g0 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g0 still energy 靜態量能"
+        internal: true
+    g1:
+      move_energy:
+        name: "g1 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g1 still energy 靜態量能"
+        internal: true
+    g2:
+      move_energy:
+        name: "g2 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g2 still energy 靜態量能"
+        internal: true
+    g3:
+      move_energy:
+        name: "g3 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g3 still energy 靜態量能"
+        internal: true
+    g4:
+      move_energy:
+        name: "g4 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g4 still energy 靜態量能"
+        internal: true
+    g5:
+      move_energy:
+        name: "g5 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g5 still energy 靜態量能"
+        internal: true
+    g6:
+      move_energy:
+        name: "g6 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g6 still energy 靜態量能"
+        internal: true
+    g7:
+      move_energy:
+        name: "g7 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g7 still energy 靜態量能"
+        internal: true
+    g8:
+      move_energy:
+        name: "g8 move energy 移動量能"
+        internal: true
+      still_energy:
+        name: "g8 still energy 靜態量能"   
+        internal: true
+ 
 number:
   - platform: ld2410
     timeout:
-      name: timeout
+      name: "timeout 延遲時間"
+      mode: box
     light_threshold:
-      name: light threshold
+      name: "light threshold 光照度臨界值"
     max_move_distance_gate:
-      name: max move distance gate
+      name: "max move distance gate 移動檢測倍數"
     max_still_distance_gate:
-      name: max still distance gate
+      name: "max still distance gate 靜態檢測倍數"
     g0:
       move_threshold:
-        name: g0 move threshold
+        name: "g0 move threshold 移動臨界值"
+        internal: true
         id: g0_move_threshold
-        internal: true
       still_threshold:
-        name: g0 still threshold
-        id: g0_still_threshold
+        name: "g0 still threshold 靜態臨界值"
         internal: true
+        id: g0_still_threshold
     g1:
       move_threshold:
-        name: g1 move threshold
+        name: "g1 move threshold 移動臨界值"
+        internal: true
         id: g1_move_threshold
-        internal: true
       still_threshold:
-        name: g1 still threshold
-        id: g1_still_threshold
+        name: "g1 still threshold 靜態臨界值"
         internal: true
+        id: g1_still_threshold
     g2:
       move_threshold:
-        name: g2 move threshold
+        name: "g2 move threshold 移動臨界值"
+        internal: true
         id: g2_move_threshold
-        internal: true
       still_threshold:
-        name: g2 still threshold
-        id: g2_still_threshold
+        name: "g2 still threshold 靜態臨界值"
         internal: true
+        id: g2_still_threshold
     g3:
       move_threshold:
-        name: g3 move threshold
+        name: "g3 move threshold 移動臨界值"
+        internal: true
         id: g3_move_threshold
-        internal: true
       still_threshold:
-        name: g3 still threshold
-        id: g3_still_threshold
+        name: "g3 still threshold 靜態臨界值"
         internal: true
+        id: g3_still_threshold
     g4:
       move_threshold:
-        name: g4 move threshold
+        name: "g4 move threshold 移動臨界值"
+        internal: true
         id: g4_move_threshold
-        internal: true
       still_threshold:
-        name: g4 still threshold
-        id: g4_still_threshold
+        name: "g4 still threshold 靜態臨界值"
         internal: true
+        id: g4_still_threshold
     g5:
       move_threshold:
-        name: g5 move threshold
+        name: "g5 move threshold 移動臨界值"
+        internal: true
         id: g5_move_threshold
-        internal: true
       still_threshold:
-        name: g5 still threshold
-        id: g5_still_threshold
+        name: "g5 still threshold 靜態臨界值"
         internal: true
+        id: g5_still_threshold
     g6:
       move_threshold:
-        name: g6 move threshold
+        name: "g6 move threshold 移動臨界值"
+        internal: true
         id: g6_move_threshold
-        internal: true
       still_threshold:
-        name: g6 still threshold
-        id: g6_still_threshold
+        name: "g6 still threshold 靜態臨界值"
         internal: true
+        id: g6_still_threshold
     g7:
       move_threshold:
-        name: g7 move threshold
+        name: "g7 move threshold 移動臨界值"
+        internal: true
         id: g7_move_threshold
-        internal: true
       still_threshold:
-        name: g7 still threshold
-        id: g7_still_threshold
+        name: "g7 still threshold 靜態臨界值"
         internal: true
+        id: g7_still_threshold
     g8:
       move_threshold:
-        name: g8 move threshold
-        id: g8_move_threshold
+        name: "g8 move threshold 移動臨界值"
         internal: true
+        id: g8_move_threshold
       still_threshold:
-        name: g8 still threshold
+        name: "g8 still threshold 靜態臨界值"
+        internal: true
         id: g8_still_threshold  
-        internal: true  
 
 button:
   - platform: ld2410
     factory_reset:
-      name: "factory reset"
-      internal: true
+      name: "factory reset 恢復出廠設定"
     restart:
-      name: "restart"
+      name: "restart 重開機"
     query_params:
-      name: query params
+      name: "query params 查詢參數"   
       internal: true
-       
   - platform: template
-    name: "Move Presets 1"
+    name: "Move Presets 1 移動預設"
     id: move_presets_1   
     icon: "mdi:signal-cellular-1"   
     entity_category: config
@@ -311,7 +366,7 @@ button:
             value: 18                                                                                     
 
   - platform: template
-    name: "Move Presets 2"
+    name: "Move Presets 2 移動預設"
     id: move_presets_2   
     icon: "mdi:signal-cellular-2"   
     entity_category: config
@@ -346,7 +401,7 @@ button:
             value: 15 
 
   - platform: template
-    name: "Move Presets 3"
+    name: "Move Presets 3 移動預設"
     id: move_presets_3   
     icon: "mdi:signal-cellular-3"   
     entity_category: config
@@ -380,8 +435,9 @@ button:
             id: g8_move_threshold
             value: 13 
 
+
   - platform: template
-    name: "Still Presets 1"
+    name: "Still Presets 1 靜態預設"
     id: still_presets_1   
     icon: "mdi:signal-cellular-1"   
     entity_category: config
@@ -416,7 +472,7 @@ button:
             value: 24 
 
   - platform: template
-    name: "Still Presets 2"
+    name: "Still Presets 2 靜態預設"
     id: still_presets_2   
     icon: "mdi:signal-cellular-2"   
     entity_category: config
@@ -451,7 +507,7 @@ button:
             value: 20 
 
   - platform: template
-    name: "Still Presets 3"
+    name: "Still Presets 3 靜態預設"
     id: still_presets_3   
     icon: "mdi:signal-cellular-3"   
     entity_category: config
@@ -483,13 +539,17 @@ button:
             value: 18 
         - number.set:
             id: g8_still_threshold
-            value: 18        
- 
+            value: 18 
+
 text_sensor:
   - platform: ld2410
     version:
-      name: "firmware version"
+      name: "firmware version 韌體版本"
       internal: true
+    mac_address:
+      name: "mac address 存取控制位址" 
+      internal: true
+
   - platform: wifi_info
     ip_address:
       name: "IP"      
@@ -500,17 +560,15 @@ text_sensor:
     mac_address:
       name: "MAC"
       icon: "mdi:lan"
-      
 select:
   - platform: ld2410
     distance_resolution:
-      name: "distance resolution"
+      name: "distance resolution 距離分辨率"
     baud_rate:
       name: "baud rate"
       internal: true
     light_function:
-      name: light function
+      name: "light function 光照度功能"
     out_pin_level:
-      name: out pin level
-
-                                           
+      name: out pin level        
+      internal: true
