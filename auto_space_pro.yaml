@@ -1,5 +1,5 @@
 substitutions:
-  name: "auto-space-pro-64f220"
+  name: "auto-space-pro-64f22"
   friendly_name: Auto Space Pro 64f220
   upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D PanasonicPIR RELAY"
   project_name: "Taiwan Smart Home Technology.Auto Space One"
@@ -388,12 +388,12 @@ sensor:
 switch:
   - platform: gpio  #light
     id: relay_1
-    pin: 8
+    pin: 9
     name: "Relay_1 繼電器"  
     icon: mdi:electric-switch
   - platform: gpio  #fan
     id: relay_2
-    pin: 9
+    pin: 8
     name: "Relay_2 繼電器"   
     icon: mdi:electric-switch
 
