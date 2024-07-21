@@ -6,6 +6,7 @@ substitutions:
   project_version: "1.0"  
   temperature_offset: "0"
   humidity_offset: "0"  
+  hidden_ssid: "false"    
   illuminance_update_interval: "2s"
   temperature_update_interval: "60s"
   wifi_signal_update_interval: "600s"    
@@ -41,7 +42,7 @@ ota:
 improv_serial:
 
 wifi:
-  # Set up a wifi access point
+  fast_connect: ${hidden_ssid}
   ap: {}
 
 # In combination with the `ap` this allows the user
@@ -56,7 +57,11 @@ dashboard_import:
 # to provision wifi credentials to the device.
 esp32_improv:
   authorizer: none
-  
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
 bluetooth_proxy:
   active: true
 # To have a "next url" for improv serial
@@ -79,7 +84,7 @@ binary_sensor:
     has_target:
       name: "Occupancy 佔用"
     has_moving_target:
-      name: "Moving Target 移動目標"
+      name: "Moving Target 動態目標"
     has_still_target:
       name: "Still Target 靜態目標"
     # out_pin_presence_status:
@@ -155,74 +160,74 @@ sensor:
     light:
       name: "Light 光照度"
     moving_distance:
-      name : "Moving Distance 移態動距離"
+      name : "Moving Distance 動態距離"
     still_distance:
       name: "Still Distance 靜態距離"
     moving_energy:
-      name: "Move Energy 移動量能"
+      name: "Move Energy 動態量能"
     still_energy:
       name: "Still Energy 靜態量能"
     detection_distance:
       name: "Detection Distance 檢測距離"
     g0:
       move_energy:
-        name: "g0 move energy 移動量能"
+        name: "g0 move energy 動態量能"
         internal: true
       still_energy:
         name: "g0 still energy 靜態量能"
         internal: true
     g1:
       move_energy:
-        name: "g1 move energy 移動量能"
+        name: "g1 move energy 動態量能"
         internal: true
       still_energy:
         name: "g1 still energy 靜態量能"
         internal: true
     g2:
       move_energy:
-        name: "g2 move energy 移動量能"
+        name: "g2 move energy 動態量能"
         internal: true
       still_energy:
         name: "g2 still energy 靜態量能"
         internal: true
     g3:
       move_energy:
-        name: "g3 move energy 移動量能"
+        name: "g3 move energy 動態量能"
         internal: true
       still_energy:
         name: "g3 still energy 靜態量能"
         internal: true
     g4:
       move_energy:
-        name: "g4 move energy 移動量能"
+        name: "g4 move energy 動態量能"
         internal: true
       still_energy:
         name: "g4 still energy 靜態量能"
         internal: true
     g5:
       move_energy:
-        name: "g5 move energy 移動量能"
+        name: "g5 move energy 動態量能"
         internal: true
       still_energy:
         name: "g5 still energy 靜態量能"
         internal: true
     g6:
       move_energy:
-        name: "g6 move energy 移動量能"
+        name: "g6 move energy 動態量能"
         internal: true
       still_energy:
         name: "g6 still energy 靜態量能"
         internal: true
     g7:
       move_energy:
-        name: "g7 move energy 移動量能"
+        name: "g7 move energy 動態量能"
         internal: true
       still_energy:
         name: "g7 still energy 靜態量能"
         internal: true
     g8:
       move_energy:
-        name: "g8 move energy 移動量能"
+        name: "g8 move energy 動態量能"
         internal: true
       still_energy:
         name: "g8 still energy 靜態量能"   
@@ -236,12 +241,12 @@ number:
     light_threshold:
       name: "light threshold 光照度臨界值"
     max_move_distance_gate:
-      name: "max move distance gate 移動檢測倍數"
+      name: "max move distance gate 動態檢測倍數"
     max_still_distance_gate:
       name: "max still distance gate 靜態檢測倍數"
     g0:
       move_threshold:
-        name: "g0 move threshold 移動臨界值"
+        name: "g0 move threshold 動態臨界值"
         internal: true
         id: g0_move_threshold
       still_threshold:
@@ -250,7 +255,7 @@ number:
         id: g0_still_threshold
     g1:
       move_threshold:
-        name: "g1 move threshold 移動臨界值"
+        name: "g1 move threshold 動態臨界值"
         internal: true
         id: g1_move_threshold
       still_threshold:
@@ -259,7 +264,7 @@ number:
         id: g1_still_threshold
     g2:
       move_threshold:
-        name: "g2 move threshold 移動臨界值"
+        name: "g2 move threshold 動態臨界值"
         internal: true
         id: g2_move_threshold
       still_threshold:
@@ -268,7 +273,7 @@ number:
         id: g2_still_threshold
     g3:
       move_threshold:
-        name: "g3 move threshold 移動臨界值"
+        name: "g3 move threshold 動態臨界值"
         internal: true
         id: g3_move_threshold
       still_threshold:
@@ -277,7 +282,7 @@ number:
         id: g3_still_threshold
     g4:
       move_threshold:
-        name: "g4 move threshold 移動臨界值"
+        name: "g4 move threshold 動態臨界值"
         internal: true
         id: g4_move_threshold
       still_threshold:
@@ -286,7 +291,7 @@ number:
         id: g4_still_threshold
     g5:
       move_threshold:
-        name: "g5 move threshold 移動臨界值"
+        name: "g5 move threshold 動態臨界值"
         internal: true
         id: g5_move_threshold
       still_threshold:
@@ -295,7 +300,7 @@ number:
         id: g5_still_threshold
     g6:
       move_threshold:
-        name: "g6 move threshold 移動臨界值"
+        name: "g6 move threshold 動態臨界值"
         internal: true
         id: g6_move_threshold
       still_threshold:
@@ -304,7 +309,7 @@ number:
         id: g6_still_threshold
     g7:
       move_threshold:
-        name: "g7 move threshold 移動臨界值"
+        name: "g7 move threshold 動態臨界值"
         internal: true
         id: g7_move_threshold
       still_threshold:
@@ -313,7 +318,7 @@ number:
         id: g7_still_threshold
     g8:
       move_threshold:
-        name: "g8 move threshold 移動臨界值"
+        name: "g8 move threshold 動態臨界值"
         internal: true
         id: g8_move_threshold
       still_threshold:
@@ -331,7 +336,7 @@ button:
       name: "query params 查詢參數"   
       internal: true
   - platform: template
-    name: "Move Presets 1 移動預設"
+    name: "Move Presets 1 動態預設"
     id: move_presets_1   
     icon: "mdi:signal-cellular-1"   
     entity_category: config
@@ -375,7 +380,7 @@ button:
         - delay: 500ms                                                                                                
 
   - platform: template
-    name: "Move Presets 2 移動預設"
+    name: "Move Presets 2 動態預設"
     id: move_presets_2   
     icon: "mdi:signal-cellular-2"   
     entity_category: config
@@ -419,7 +424,7 @@ button:
         - delay: 500ms            
 
   - platform: template
-    name: "Move Presets 3 移動預設"
+    name: "Move Presets 3 動態預設"
     id: move_presets_3   
     icon: "mdi:signal-cellular-3"   
     entity_category: config
@@ -622,7 +627,7 @@ select:
       name: "baud rate"
       internal: true
     light_function:
-      name: "light function 光照度功能"
+      name: "light function 光照模式"
     out_pin_level:
       name: out pin level        
       internal: true
