@@ -1,11 +1,12 @@
 substitutions:
-  name: "auto-space-bathroom-64f22"
+  name: "auto-space-bathroom-64f220"
   friendly_name: Auto Space Bathroom 64f220
-  upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D PanasonicPIR RELAY"
+  upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D PanasonicPIR 2WAY RELAY"
   project_name: "Taiwan Smart Home Technology.Auto Space One"
   project_version: "1.0"  
   temperature_offset: "0"
   humidity_offset: "0"  
+  hidden_ssid: "false"  
   illuminance_update_interval: "2s"
   temperature_update_interval: "60s"
   wifi_signal_update_interval: "600s"    
@@ -40,7 +41,7 @@ ota:
 improv_serial:
 
 wifi:
-  # Set up a wifi access point
+  fast_connect: ${hidden_ssid}
   ap: {}
 
 # In combination with the `ap` this allows the user
@@ -55,6 +56,10 @@ dashboard_import:
 # to provision wifi credentials to the device.
 esp32_improv:
   authorizer: none
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
 
 bluetooth_proxy:
   active: true
@@ -126,7 +131,7 @@ binary_sensor:
       # internal: true
       id: mmwave
     has_moving_target:
-      name: "Moving Target 移動目標"
+      name: "Moving Target 動態目標"
       # internal: true
     has_still_target:
       name: "Still Target 靜態目標"
@@ -327,13 +332,13 @@ sensor:
       name: light
       internal: true
     moving_distance:
-      name : "Moving Distance 移態動距離"
+      name : "Moving Distance 動態距離"
       # internal: true
     still_distance:
       name: "Still Distance 靜態距離"
       # internal: true
     moving_energy:
-      name: "Move Energy移動量能"
+      name: "Move Energy動態量能"
       icon: mdi:flash
       # internal: true
     still_energy:
@@ -663,7 +668,7 @@ select:
       name: out pin level  
       internal: true 
   - platform: template
-    name: "Occupancy On By"
+    name: "Occupancy On By 打開依據"
     id: occupancy_on_by
     optimistic: true
     entity_category: config
@@ -685,7 +690,7 @@ button:
       internal: true
 
   - platform: template
-    name: "Move Presets 1"
+    name: "Move Presets 1 動態預設"
     id: move_presets_1   
     icon: "mdi:signal-cellular-1"   
     entity_category: config
@@ -720,7 +725,7 @@ button:
             value: 18                                                                                     
 
   - platform: template
-    name: "Move Presets 2"
+    name: "Move Presets 2 動態預設"
     id: move_presets_2   
     icon: "mdi:signal-cellular-2"   
     entity_category: config
@@ -755,7 +760,7 @@ button:
             value: 15 
 
   - platform: template
-    name: "Move Presets 3"
+    name: "Move Presets 3 動態預設"
     id: move_presets_3   
     icon: "mdi:signal-cellular-3"   
     entity_category: config
@@ -790,7 +795,7 @@ button:
             value: 13 
 
   - platform: template
-    name: "Still Presets 1"
+    name: "Still Presets 1 靜態預設"
     id: still_presets_1   
     icon: "mdi:signal-cellular-1"   
     entity_category: config
@@ -825,7 +830,7 @@ button:
             value: 24 
 
   - platform: template
-    name: "Still Presets 2"
+    name: "Still Presets 2 靜態預設"
     id: still_presets_2   
     icon: "mdi:signal-cellular-2"   
     entity_category: config
@@ -860,7 +865,7 @@ button:
             value: 20 
 
   - platform: template
-    name: "Still Presets 3"
+    name: "Still Presets 3 靜態預設"
     id: still_presets_3   
     icon: "mdi:signal-cellular-3"   
     entity_category: config
