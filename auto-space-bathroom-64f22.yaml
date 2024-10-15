@@ -1,8 +1,8 @@
 substitutions:
-  name: "auto-space-bathroom-64f220"
-  friendly_name: Auto Space Bathroom 64f220
+  name: "autospacepro"
+  friendly_name: AutoSpacePro
   upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D PanasonicPIR 2WAY RELAY"
-  project_name: "Taiwan Smart Home Technology.Auto Space One"
+  project_name: "Taiwan Smart Home Technology.Auto Space Pro"
   project_version: "1.0"  
   temperature_offset: "0"
   humidity_offset: "0"  
