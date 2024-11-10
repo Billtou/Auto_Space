@@ -1,0 +1,769 @@
+substitutions:
+  name: autospace-lite
+  friendly_name: AutoSpace Lite
+  upper_devicename: "ESP32-S3 LD2410C BH1750 Panasonic PIR 1WAY RELAY"
+  project_name: "Taiwan Smart Home Technology.Auto Space Lite"
+  project_version: "1.0"  
+  temperature_offset: "-4.0"
+  humidity_offset: "4.6"  
+  hidden_ssid: "false"  
+  illuminance_update_interval: "2s"
+  temperature_update_interval: "60s"
+  wifi_signal_update_interval: "600s"    
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: True
+  platformio_options:
+    board_build.flash_mode: dio
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  comment: ${upper_devicename}   
+  on_boot: 
+    then:
+      - delay: 15s
+      - select.set:
+          id: light_function
+          option: "off"
+      - delay: 1s
+      - select.set:
+          id: out_pin_level
+          option: "low"
+      - logger.log: "light_function set off" 
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+logger:
+  logs:
+    ld2410: WARN
+    bh1750: WARN
+    sensor: WARN
+    component: ERROR
+
+api:
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+
+improv_serial:
+
+wifi:
+  fast_connect: ${hidden_ssid}
+  ap:
+    ssid: ${name}
+    password: ""
+
+captive_portal:
+
+dashboard_import:
+  package_import_url: github://esphome/firmware/esphome-web/esp32s3.yaml@v2
+  import_full_config: true
+
+esp32_improv:
+  authorizer: none
+
+web_server:
+  port: 80
+  version: 3
+  
+i2c:
+  - id: bus_lx
+    sda: GPIO35
+    scl: GPIO36
+    scan: true
+
+uart:
+  id: uart_mmwave
+  tx_pin: 17
+  rx_pin: 18
+  baud_rate: 256000
+  parity: NONE
+  stop_bits: 1  
+
+ld2410:
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      name: "mmWave 毫米波"
+      icon: mdi:motion-sensor
+      # internal: true
+      id: mmwave_pin_presence
+    has_moving_target:
+      name: "Moving Target 動態目標"
+      # internal: true
+    has_still_target:
+      name: "Still Target 靜態目標"
+      # internal: true
+
+  - platform: gpio
+    pin: 16
+    name: "mmWave"
+    device_class: motion
+    id: mmwave
+    internal: true
+  - platform: gpio
+    pin:
+      number: 13
+      mode: INPUT_PULLDOWN
+    name: "Pir 1 紅外線"
+    icon: mdi:motion-sensor
+    id: pir_sensor_1
+    device_class: motion
+    filters:
+      - delayed_off:  !lambda 'return id(pir_off_latency_ui).state * 1000.0;'
+      
+  - platform: gpio
+    pin:
+      number: 14
+      mode: INPUT_PULLDOWN
+    name: "Pir 2 紅外線"
+    icon: mdi:motion-sensor
+    id: pir_sensor_2
+    device_class: motion
+    filters:
+      - delayed_off:  !lambda 'return id(pir_off_latency_ui).state * 1000.0;'
+      
+  - platform: gpio
+    id: binary_sensor_1
+    name: "Binary sensor 1 電燈開關"
+    icon: mdi:toggle-switch-variant-off
+    pin:
+      number: 10
+      inverted: true
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_state:
+      then:
+        - if:
+            condition:    
+              lambda: 'return !id(decouple_1).state;'
+            then:
+              - switch.toggle: relay_1
+ 
+  - platform: template
+    name: "Light Occupancy 光照判斷"
+    id: ambient_light_mode
+    icon: mdi:theme-light-dark
+    lambda: |-
+      float illuminance_sensor = id(illuminance).state;  // 使用實際光照感測器讀數
+      float below_threshold = id(ambient_light_Below_ui).state;
+      return illuminance_sensor <= below_threshold;
+
+  - platform: template
+    name: "Occupancy 佔用"
+    id: occupancy
+    device_class: occupancy
+    icon: mdi:account
+    filters:
+      - delayed_off: !lambda 'return id(occupancy_off_latency_ui).state * 1000.0;'
+    lambda: |-
+      if (id(occupancy_on_by).state == "紅外線") {
+        if (id(pir_sensor_1).state || id(pir_sensor_2).state) {
+          return true;
+        } else if (!id(mmwave).state && !id(pir_sensor_1).state && !id(pir_sensor_2).state) {
+          return false;
+        } else {
+          return id(occupancy).state;
+        }
+      } else if (id(occupancy_on_by).state == "毫米波") {
+        if (id(mmwave).state) {
+          return true;
+        } else {
+          return false;
+        }
+      } else {
+        return id(occupancy).state;  // 添加这一行以确保在所有情况下都有返回值
+      }
+    on_state:
+      then:
+        - if:
+            condition:  # 有人，非手動，亮度不夠 開燈
+              lambda: 'return id(occupancy).state && !id(manual_mode).state && id(ambient_light_mode).state ;'
+            then:        
+              - switch.turn_on: relay_1
+            else:
+              - switch.turn_off: relay_1  
+
+sensor:
+  - platform: bh1750
+    i2c_id: bus_lx
+    id: illuminance
+    name: "illuminanc 光照度"
+    update_interval: ${illuminance_update_interval}
+    icon: mdi:weather-sunny
+    filters:
+      - calibrate_linear:
+          method: exact
+          datapoints:
+            - 0.3 -> 0.3
+            - 0.9 -> 1.7
+            - 1.2 -> 3.6
+            - 3.2 -> 6.9
+            - 5.1 -> 10.2
+            - 6.8 -> 27.1
+            - 7.0 -> 13.5
+            - 7.4 -> 28.2
+            - 8.7 -> 21.7
+            - 8.9 -> 17.1
+            - 10.9 -> 20.4
+            - 12.8 -> 23.5
+            - 14.5 -> 31.2
+            - 14.9 -> 26.7
+            - 16.8 -> 41.1
+            - 16.9 -> 30.2
+            - 18.8 -> 33.4
+            - 19.1 -> 35.8
+            - 20.7 -> 37.0
+            - 24.3 -> 60.3
+            - 26.1 -> 68.6
+            - 26.7 -> 83.8
+            - 30.2 -> 75.9
+            - 32.6 -> 80.3
+            - 34.6 -> 83.2
+            - 40.4 -> 99.9
+            - 48.0 -> 183.7
+            - 48.3 -> 119.2
+            - 55.5 -> 141.3
+            - 55.8 -> 137.9
+            - 63.8 -> 157.6
+            - 71.5 -> 176.9
+            - 79.8 -> 197.1
+            - 84.3 -> 205.7 
+      - clamp:
+          min_value: 0
+
+  - platform: ld2410
+    light:
+      name: "Light 光照度"
+      internal: true
+    moving_distance:
+      name : "Moving Distance 動態距離"
+    still_distance:
+      name: "Still Distance 靜態距離"
+    moving_energy:
+      name: "Move Energy 動態量能"
+    still_energy:
+      name: "Still Energy 靜態量能"
+    detection_distance:
+      name: "Detection Distance 檢測距離"
+    g0:
+      still_energy:
+        name: g0 still energy
+        internal: true
+    g1:
+      still_energy:
+        name: g1 still energy
+        internal: true
+    g2:
+      still_energy:
+        name: g2 still energy
+        internal: true
+    g3:
+      still_energy:
+        name: g3 still energy
+        internal: true
+    g4:
+      still_energy:
+        name: g4 still energy
+        internal: true
+    g5:
+      still_energy:
+        name: g5 still energy
+        internal: true
+    g6:
+      still_energy:
+        name: g6 still energy
+        internal: true
+    g7:
+      still_energy:
+        name: g7 still energy
+        internal: true
+    g8:
+      still_energy:
+        name: g8 still energy
+        internal: true
+
+  - platform: wifi_signal
+    name: "Signal"
+    update_interval: ${wifi_signal_update_interval}  
+    icon: mdi:signal
+
+switch:
+  - platform: gpio  #light
+    id: relay_1
+    pin: 8
+    name: "Relay 1 電燈繼電器"  
+    icon: mdi:electric-switch
+
+  - platform: template
+    name: "occupancy_timeout"
+    id: occupancy_timeout
+    icon: mdi:timer-sand-complete
+    optimistic: true
+    internal: true
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: template
+    name: "Manual Mode 手動模式"
+    id: manual_mode
+    icon: mdi:car-shift-pattern
+    optimistic: true
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: template
+    name: "Decouple relay 1 電燈解藕"
+    id: decouple_1
+    icon: mdi:link-variant
+    optimistic: true
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: ld2410
+    engineering_mode:
+      name: "engineering mode"
+      internal: true
+    bluetooth:
+      name: "mmWave Bluetooth"  
+      # internal: true
+
+number:
+# PIR DELAYED OFF       
+  - platform: template
+    name: "PIR off latency"
+    icon: mdi:clock-end
+    entity_category: config
+    id: pir_off_latency_ui
+    min_value: 1
+    max_value: 120
+    initial_value: 10
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: slider    
+    internal: true
+
+  - platform: template
+    name: "Light Threshold 光照低於開燈"
+    icon: mdi:brightness-6
+    entity_category: config
+    id: ambient_light_Below_ui
+    min_value: 0
+    max_value: 1600
+    initial_value: 1600
+    optimistic: true
+    step: 1
+    restore_value: true
+    unit_of_measurement: lx
+    mode: box  
+
+  - platform: template
+    name: "Time Out 延遲關燈時間"
+    icon: mdi:clock-end
+    entity_category: config
+    id: occupancy_off_latency_ui
+    min_value: 1
+    max_value: 600
+    initial_value: 60
+    optimistic: true
+    step: 5
+    restore_value: true
+    unit_of_measurement: seconds
+    mode: box 
+
+  - platform: ld2410
+    timeout:
+      name: timeout
+      internal: true
+    max_move_distance_gate:
+      name: Max Move Distance 最大動態偵測距離
+      # internal: true
+    max_still_distance_gate:
+      name: Max Still Distance 最大靜態距離
+    g0:
+      move_threshold:
+        name: g0 move threshold
+        id: g0_move_threshold
+        internal: true
+      still_threshold:
+        name: g0 still threshold
+        id: g0_still_threshold
+        internal: true
+    g1:
+      move_threshold:
+        name: g1 move threshold
+        id: g1_move_threshold
+        internal: true
+      still_threshold:
+        name: g1 still threshold
+        id: g1_still_threshold
+        internal: true
+    g2:
+      move_threshold:
+        name: g2 move threshold
+        id: g2_move_threshold
+        internal: true
+      still_threshold:
+        name: g2 still threshold
+        id: g2_still_threshold
+        internal: true
+    g3:
+      move_threshold:
+        name: g3 move threshold
+        id: g3_move_threshold
+        internal: true
+      still_threshold:
+        name: g3 still threshold
+        id: g3_still_threshold
+        internal: true
+    g4:
+      move_threshold:
+        name: g4 move threshold
+        id: g4_move_threshold
+        internal: true
+      still_threshold:
+        name: g4 still threshold
+        id: g4_still_threshold
+        internal: true
+    g5:
+      move_threshold:
+        name: g5 move threshold
+        id: g5_move_threshold
+        internal: true
+      still_threshold:
+        name: g5 still threshold
+        id: g5_still_threshold
+        internal: true
+    g6:
+      move_threshold:
+        name: g6 move threshold
+        id: g6_move_threshold
+        internal: true
+      still_threshold:
+        name: g6 still threshold
+        id: g6_still_threshold
+        internal: true
+    g7:
+      move_threshold:
+        name: g7 move threshold
+        id: g7_move_threshold
+        internal: true
+      still_threshold:
+        name: g7 still threshold
+        id: g7_still_threshold
+        internal: true
+    g8:
+      move_threshold:
+        name: g8 move threshold
+        id: g8_move_threshold
+        internal: true
+      still_threshold:
+        name: g8 still threshold
+        id: g8_still_threshold  
+        internal: true  
+
+select:
+  - platform: ld2410
+    distance_resolution:
+      name: "Distance Resolution 距離分辨率"
+    light_function:
+      name: light function
+      id: light_function
+      internal: true
+    out_pin_level:
+      name: "mmWave Out Pin 毫米波參數"
+      id: out_pin_level  
+      # internal: true
+  - platform: template
+    name: "Occupancy On By 開燈依據"
+    id: occupancy_on_by
+    optimistic: true
+    entity_category: config
+    options:
+      - 毫米波
+      - 紅外線
+    initial_option: 毫米波
+    icon: mdi:motion-sensor
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: "diagnostic"  
+  - platform: ld2410
+    factory_reset:
+      name: "factory reset"
+      internal: true
+    restart:
+      name: "Restart"
+      internal: true
+    query_params:
+      name: query params   
+      internal: true
+
+  - platform: template
+    name: "Threshold Presets 1 靈敏預設"
+    id: move_presets_1   
+    icon: "mdi:signal-cellular-1"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_move_threshold
+            value: 60 
+        - delay: 500ms
+        - number.set:
+            id: g1_move_threshold
+            value: 60 
+        - delay: 500ms            
+        - number.set:
+            id: g2_move_threshold
+            value: 48 
+        - delay: 500ms            
+        - number.set:
+            id: g3_move_threshold
+            value: 36 
+        - delay: 500ms            
+        - number.set:
+            id: g4_move_threshold
+            value: 24 
+        - delay: 500ms            
+        - number.set:
+            id: g5_move_threshold
+            value: 18 
+        - delay: 500ms            
+        - number.set:
+            id: g6_move_threshold
+            value: 18 
+        - delay: 500ms            
+        - number.set:
+            id: g7_move_threshold
+            value: 18 
+        - delay: 500ms            
+        - number.set:
+            id: g8_move_threshold
+            value: 18     
+        - delay: 500ms                                                                                            
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - delay: 500ms            
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - delay: 500ms            
+        - number.set:
+            id: g2_still_threshold
+            value: 48 
+        - delay: 500ms            
+        - number.set:
+            id: g3_still_threshold
+            value: 48 
+        - delay: 500ms            
+        - number.set:
+            id: g4_still_threshold
+            value: 36 
+        - delay: 500ms            
+        - number.set:
+            id: g5_still_threshold
+            value: 36 
+        - delay: 500ms            
+        - number.set:
+            id: g6_still_threshold
+            value: 24 
+        - delay: 500ms            
+        - number.set:
+            id: g7_still_threshold
+            value: 24 
+        - delay: 500ms            
+        - number.set:
+            id: g8_still_threshold
+            value: 24 
+        - delay: 500ms  
+
+  - platform: template
+    name: "Threshold Presets 2 靈敏預設"
+    id: move_presets_2   
+    icon: "mdi:signal-cellular-2"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_move_threshold
+            value: 50 
+        - delay: 500ms            
+        - number.set:
+            id: g1_move_threshold
+            value: 50 
+        - delay: 500ms            
+        - number.set:
+            id: g2_move_threshold
+            value: 40 
+        - delay: 500ms            
+        - number.set:
+            id: g3_move_threshold
+            value: 30 
+        - delay: 500ms            
+        - number.set:
+            id: g4_move_threshold
+            value: 20 
+        - delay: 500ms            
+        - number.set:
+            id: g5_move_threshold
+            value: 15 
+        - delay: 500ms            
+        - number.set:
+            id: g6_move_threshold
+            value: 15 
+        - delay: 500ms            
+        - number.set:
+            id: g7_move_threshold
+            value: 15 
+        - delay: 500ms            
+        - number.set:
+            id: g8_move_threshold
+            value: 15 
+        - delay: 500ms            
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - delay: 500ms            
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - delay: 500ms            
+        - number.set:
+            id: g2_still_threshold
+            value: 40 
+        - delay: 500ms            
+        - number.set:
+            id: g3_still_threshold
+            value: 40 
+        - delay: 500ms            
+        - number.set:
+            id: g4_still_threshold
+            value: 30 
+        - delay: 500ms            
+        - number.set:
+            id: g5_still_threshold
+            value: 30 
+        - delay: 500ms            
+        - number.set:
+            id: g6_still_threshold
+            value: 20 
+        - delay: 500ms            
+        - number.set:
+            id: g7_still_threshold
+            value: 20 
+        - delay: 500ms            
+        - number.set:
+            id: g8_still_threshold
+            value: 20 
+        - delay: 500ms  
+
+  - platform: template
+    name: "Threshold Presets 3 靈敏預設"
+    id: move_presets_3   
+    icon: "mdi:signal-cellular-3"   
+    entity_category: config
+    on_press:
+      then:
+        - number.set:
+            id: g0_move_threshold
+            value: 45 
+        - delay: 500ms            
+        - number.set:
+            id: g1_move_threshold
+            value: 45 
+        - delay: 500ms            
+        - number.set:
+            id: g2_move_threshold
+            value: 36 
+        - delay: 500ms            
+        - number.set:
+            id: g3_move_threshold
+            value: 27 
+        - delay: 500ms            
+        - number.set:
+            id: g4_move_threshold
+            value: 18 
+        - delay: 500ms            
+        - number.set:
+            id: g5_move_threshold
+            value: 13 
+        - delay: 500ms            
+        - number.set:
+            id: g6_move_threshold
+            value: 13 
+        - delay: 500ms            
+        - number.set:
+            id: g7_move_threshold
+            value: 13 
+        - delay: 500ms            
+        - number.set:
+            id: g8_move_threshold
+            value: 13 
+        - delay: 500ms            
+        - number.set:
+            id: g0_still_threshold
+            value: 0 
+        - delay: 500ms            
+        - number.set:
+            id: g1_still_threshold
+            value: 0 
+        - delay: 500ms            
+        - number.set:
+            id: g2_still_threshold
+            value: 36 
+        - delay: 500ms            
+        - number.set:
+            id: g3_still_threshold
+            value: 36 
+        - delay: 500ms            
+        - number.set:
+            id: g4_still_threshold
+            value: 27 
+        - delay: 500ms            
+        - number.set:
+            id: g5_still_threshold
+            value: 27 
+        - delay: 500ms            
+        - number.set:
+            id: g6_still_threshold
+            value: 18 
+        - delay: 500ms            
+        - number.set:
+            id: g7_still_threshold
+            value: 18 
+        - delay: 500ms            
+        - number.set:
+            id: g8_still_threshold
+            value: 18   
+        - delay: 500ms   
+           
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "WIFI IP"      
+      icon: "mdi:ip-outline"
+    ssid:
+      name: "WIFI SSID"
+      icon: "mdi:router-wireless"
+    mac_address:
+      name: "WIFI MAC"
+      icon: "mdi:lan"
+  - platform: ld2410
+    version:
+      name: "mmWave version"
+    mac_address:
+      name: "mmWave Mac address"             
