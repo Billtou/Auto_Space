@@ -1,6 +1,6 @@
 substitutions:
-  name: autospace-lite
-  friendly_name: AutoSpace Lite
+  name: autospace-lite-4297e8
+  friendly_name: AutoSpace Lite 4297e8
   upper_devicename: "ESP32-S3 LD2410C BH1750 Panasonic PIR 1WAY RELAY"
   project_name: "Taiwan Smart Home Technology.Auto Space Lite"
   project_version: "1.0"  
@@ -110,24 +110,28 @@ binary_sensor:
     internal: true
   - platform: gpio
     pin:
-      number: 13
+      number: 14
       mode: INPUT_PULLDOWN
     name: "Pir 1 紅外線"
     icon: mdi:motion-sensor
     id: pir_sensor_1
     device_class: motion
     filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms      
       - delayed_off:  !lambda 'return id(pir_off_latency_ui).state * 1000.0;'
       
   - platform: gpio
     pin:
-      number: 14
+      number: 13
       mode: INPUT_PULLDOWN
     name: "Pir 2 紅外線"
     icon: mdi:motion-sensor
     id: pir_sensor_2
     device_class: motion
     filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms      
       - delayed_off:  !lambda 'return id(pir_off_latency_ui).state * 1000.0;'
       
   - platform: gpio
@@ -377,7 +381,7 @@ number:
     max_value: 600
     initial_value: 60
     optimistic: true
-    step: 5
+    step: 1
     restore_value: true
     unit_of_measurement: seconds
     mode: box 
