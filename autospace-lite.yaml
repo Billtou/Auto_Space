@@ -1,7 +1,7 @@
 substitutions:
   name: autospace-lite-4297e8
   friendly_name: AutoSpace Lite 4297e8
-  upper_devicename: "ESP32-S3 LD2410C BH1750 Panasonic PIR 1WAY RELAY"
+  upper_devicename: "ESP32-S3 LD2410C BH1750 1WAY RELAY"
   project_name: "Taiwan Smart Home Technology.Auto Space Lite"
   project_version: "1.0"  
   temperature_offset: "-4.0"
@@ -14,7 +14,7 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  name_add_mac_suffix: True
+  name_add_mac_suffix: False
   platformio_options:
     board_build.flash_mode: dio
   project:
