@@ -297,7 +297,7 @@ sensor:
         internal: true
 
   - platform: wifi_signal
-    name: "Signal"
+    name: "WIFI Signal"
     update_interval: ${wifi_signal_update_interval}  
     icon: mdi:signal
 
@@ -482,9 +482,9 @@ select:
     distance_resolution:
       name: "Distance Resolution 距離分辨率"
     light_function:
-      name: light function
+      name: "mmWave light 毫米波參數"
       id: light_function
-      internal: true
+      # internal: true
     out_pin_level:
       name: "mmWave Out Pin 毫米波參數"
       id: out_pin_level  
