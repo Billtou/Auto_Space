@@ -313,11 +313,11 @@ sensor:
                     then:        
                       - switch.turn_on: relay_2
 
-  - platform: absolute_humidity
-    name: "Absolute Humidity 絕對濕度"
-    id: absolute_humidity_now
-    temperature: temperature
-    humidity: humidity
+  # - platform: absolute_humidity
+  #   name: "Absolute Humidity 絕對濕度"
+  #   id: absolute_humidity_now
+  #   temperature: temperature
+  #   humidity: humidity
 
   - platform: bh1750
     i2c_id: bus_lx
