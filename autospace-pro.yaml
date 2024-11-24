@@ -1,8 +1,8 @@
 substitutions:
   name: "autospace-pro-428dac"
-  friendly_name: AutoSpace Pro 428dac
+  friendly_name: "AutoSpace Pro 428dac"
   upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D 2WAY RELAY"
-  project_name: "Taiwan Smart Home Technology.Auto Space One"
+  project_name: "Taiwan Smart Home Technology.AutoSpace Pro"
   project_version: "1.0"  
   temperature_offset: "-4.0"
   humidity_offset: "4.6"  
@@ -36,7 +36,7 @@ esphome:
 esp32:
   board: esp32-s3-devkitc-1
   framework:
-    type: arduino
+    type: esp-idf
 
 logger:
   logs:
@@ -173,7 +173,7 @@ binary_sensor:
       
   - platform: gpio
     id: binary_sensor_1
-    name: "Binary sensor 1 開關訊號"
+    name: "Binary sensor 1 電燈開關訊號"
     icon: mdi:toggle-switch-variant-off
     pin:
       number: 10
@@ -192,7 +192,7 @@ binary_sensor:
 
   - platform: gpio
     id: binary_sensor_2
-    name: "Binary sensor 2 開關訊號"
+    name: "Binary sensor 2 風扇開關訊號"
     icon: mdi:toggle-switch-variant-off
     pin:
       number: 11
@@ -215,22 +215,22 @@ binary_sensor:
     id: dehumidity_sensor
     icon: mdi:water-percent
     lambda: |-
-      float dehumidity = id(humidity).state; // Replace with your actual humidity sensor reading
+      float dehumidity = id(humidity).state; 
       float high_threshold = id(reduce_thresholdy_ui).state;
       float low_threshold =  id(reduce_thresholdy_ui).state - id(below_thresholdy_ui).state;
       if (dehumidity > high_threshold) {
-        return true;
-      } else if (dehumidity <= low_threshold) {
-        return false;
-      }
-      return id(dehumidity_sensor).state; // Maintain the previous state otherwise
+          return true;
+        } else if (dehumidity <= low_threshold) {
+          return false;
+        }
+        return id(dehumidity_sensor).state; 
 
   - platform: template
     name: "Light Occupancy 光照判斷"
     id: ambient_light_mode
     icon: mdi:theme-light-dark
     lambda: |-
-      float illuminance_sensor = id(illuminance).state;  // 使用實際光照感測器讀數
+      float illuminance_sensor = id(illuminance).state;  
       float below_threshold = id(ambient_light_Below_ui).state;
       return illuminance_sensor <= below_threshold;
 
@@ -583,10 +583,10 @@ number:
       name: timeout
       internal: true
     max_move_distance_gate:
-      name: Max Move Distance 最大動態偵測距離
+      name: "Max Move Distance 最大動態偵測距離"
       # internal: true
     max_still_distance_gate:
-      name: Max Still Distance 最大靜態距離
+      name: "Max Still Distance 最大靜態距離"
     g0:
       move_threshold:
         name: g0 move threshold
@@ -694,7 +694,7 @@ select:
 
 button:
   - platform: restart
-    name: "Restart"
+    name: "Device Restart 重啟"
     entity_category: "diagnostic"  
   - platform: ld2410
     factory_reset:
