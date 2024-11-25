@@ -514,7 +514,7 @@ number:
     id: reduce_thresholdy_ui
     min_value: 50
     max_value: 85
-    initial_value: 70
+    initial_value: 75
     optimistic: true
     step: 1
     restore_value: true
