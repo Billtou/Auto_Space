@@ -31,13 +31,13 @@ esphome:
       - select.set:
           id: out_pin_level
           option: "low"
-      - logger.log: "light_function set off" 
+      - logger.log: "light_function set off and out_pin_level set low" 
 
 esp32:
   board: esp32-s3-devkitc-1
   framework:
-    type: arduino
-
+    type: esp-idf
+    
 logger:
   logs:
     ld2410: WARN
@@ -112,7 +112,7 @@ binary_sensor:
     pin:
       number: 14
       mode: INPUT_PULLDOWN
-    name: "Pir 1 紅外線"
+    name: "Pir 2 紅外線"
     icon: mdi:motion-sensor
     id: pir_sensor_1
     device_class: motion
@@ -125,7 +125,7 @@ binary_sensor:
     pin:
       number: 13
       mode: INPUT_PULLDOWN
-    name: "Pir 2 紅外線"
+    name: "Pir 1 紅外線"
     icon: mdi:motion-sensor
     id: pir_sensor_2
     device_class: motion
@@ -158,7 +158,7 @@ binary_sensor:
     id: ambient_light_mode
     icon: mdi:theme-light-dark
     lambda: |-
-      float illuminance_sensor = id(illuminance).state;  // 使用實際光照感測器讀數
+      float illuminance_sensor = id(illuminance).state;  
       float below_threshold = id(ambient_light_Below_ui).state;
       return illuminance_sensor <= below_threshold;
 
@@ -338,7 +338,7 @@ switch:
       name: "engineering mode"
       internal: true
     bluetooth:
-      name: "mmWave Bluetooth"  
+      name: "mmWave Bluetooth 毫米波藍芽"
       # internal: true
 
 number:
@@ -391,10 +391,10 @@ number:
       name: timeout
       internal: true
     max_move_distance_gate:
-      name: Max Move Distance 最大動態偵測距離
+      name: "Max Move Distance 最大動態偵測距離"
       # internal: true
     max_still_distance_gate:
-      name: Max Still Distance 最大靜態距離
+      name: "Max Still Distance 最大靜態距離"
     g0:
       move_threshold:
         name: g0 move threshold
@@ -495,14 +495,14 @@ select:
     optimistic: true
     entity_category: config
     options:
-      - 毫米波
-      - 紅外線
-    initial_option: 毫米波
+      - "毫米波"
+      - "紅外線"
+    initial_option: "毫米波"
     icon: mdi:motion-sensor
 
 button:
   - platform: restart
-    name: "Restart"
+    name: "Restart 重啟"
     entity_category: "diagnostic"  
   - platform: ld2410
     factory_reset:
