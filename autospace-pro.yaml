@@ -1,6 +1,6 @@
 substitutions:
-  name: "autospace-pro-428dac"
-  friendly_name: "AutoSpace Pro 428dac"
+  name: autospace-pro
+  friendly_name: AutoSpace Pro
   upper_devicename: "ESP32-S3 LD2410C BH1750 HTU21D 2WAY RELAY"
   project_name: "Taiwan Smart Home Technology.AutoSpace Pro"
   project_version: "1.0"  
@@ -14,7 +14,7 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  name_add_mac_suffix: False
+  name_add_mac_suffix: True
   platformio_options:
     board_build.flash_mode: dio
   project:
@@ -37,7 +37,7 @@ esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: arduino
-
+    
 logger:
   logs:
     ld2410: WARN
@@ -47,7 +47,6 @@ logger:
     component: ERROR
 
 api:
-  reboot_timeout: 0s
 
 ota:
   - platform: esphome
