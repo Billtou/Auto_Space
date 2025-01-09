@@ -3,7 +3,7 @@ substitutions:
   friendly_name: AutoSpace Lite 4297e8
   upper_devicename: "ESP32-S3 LD2410C BH1750 1WAY RELAY"
   project_name: "Taiwan Smart Home Technology.Auto Space Lite"
-  project_version: "1.0"  
+  project_version: "2025.1.1"  
   temperature_offset: "-4.0"
   humidity_offset: "4.6"  
   hidden_ssid: "false"  
