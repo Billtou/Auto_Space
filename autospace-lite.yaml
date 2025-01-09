@@ -92,14 +92,17 @@ binary_sensor:
   - platform: ld2410
     has_target:
       name: "mmWave 毫米波"
-      icon: mdi:motion-sensor
+      # icon: mdi:motion-sensor
       # internal: true
       id: mmwave_pin_presence
+      device_class: motion
     has_moving_target:
       name: "Moving Target 動態目標"
+      icon: mdi:run
       # internal: true
     has_still_target:
       name: "Still Target 靜態目標"
+      icon: mdi:meditation
       # internal: true
 
   - platform: gpio
@@ -113,7 +116,7 @@ binary_sensor:
       number: 14
       mode: INPUT_PULLDOWN
     name: "Pir 2 紅外線"
-    icon: mdi:motion-sensor
+    # icon: mdi:motion-sensor
     id: pir_sensor_1
     device_class: motion
     filters:
@@ -126,7 +129,7 @@ binary_sensor:
       number: 13
       mode: INPUT_PULLDOWN
     name: "Pir 1 紅外線"
-    icon: mdi:motion-sensor
+    # icon: mdi:motion-sensor
     id: pir_sensor_2
     device_class: motion
     filters:
@@ -137,7 +140,7 @@ binary_sensor:
   - platform: gpio
     id: binary_sensor_1
     name: "Binary sensor 1 電燈開關"
-    icon: mdi:toggle-switch-variant-off
+    # icon: mdi:toggle-switch-variant-off
     pin:
       number: 10
       inverted: true
@@ -151,51 +154,81 @@ binary_sensor:
             condition:    
               lambda: 'return !id(decouple_1).state;'
             then:
-              - switch.toggle: relay_1
+              - light.toggle: relay_1
  
   - platform: template
     name: "Light Occupancy 光照判斷"
     id: ambient_light_mode
-    icon: mdi:theme-light-dark
+    # icon: mdi:theme-light-dark
     lambda: |-
       float illuminance_sensor = id(illuminance).state;  
       float below_threshold = id(ambient_light_Below_ui).state;
       return illuminance_sensor <= below_threshold;
 
+
+
   - platform: template
     name: "Occupancy 佔用"
     id: occupancy
-    device_class: occupancy
-    icon: mdi:account
+    device_class: motion
+    # icon: mdi:account
     filters:
       - delayed_off: !lambda 'return id(occupancy_off_latency_ui).state * 1000.0;'
     lambda: |-
-      if (id(occupancy_on_by).state == "紅外線") {
-        if (id(pir_sensor_1).state || id(pir_sensor_2).state) {
-          return true;
-        } else if (!id(mmwave).state && !id(pir_sensor_1).state && !id(pir_sensor_2).state) {
-          return false;
-        } else {
-          return id(occupancy).state;
-        }
-      } else if (id(occupancy_on_by).state == "毫米波") {
-        if (id(mmwave).state) {
-          return true;
-        } else {
-          return false;
-        }
-      } else {
-        return id(occupancy).state;  // 添加这一行以确保在所有情况下都有返回值
+      auto state = id(occupancy_on_by).state;
+      if (state == "紅外線") {
+        return id(pir_sensor_1).state || id(pir_sensor_2).state || (id(mmwave).state ? id(occupancy).state : false);
+      } 
+      if (state == "毫米波") {
+        return id(mmwave).state;
       }
+      return id(occupancy).state;
     on_state:
       then:
         - if:
             condition:  # 有人，非手動，亮度不夠 開燈
               lambda: 'return id(occupancy).state && !id(manual_mode).state && id(ambient_light_mode).state ;'
             then:        
-              - switch.turn_on: relay_1
+              - light.turn_on: relay_1
             else:
-              - switch.turn_off: relay_1  
+              - light.turn_off: relay_1  
+
+  # - platform: template
+  #   name: "Occupancy 佔用"
+  #   id: occupancy
+  #   device_class: occupancy
+  #   icon: mdi:account
+  #   filters:
+  #     - delayed_off: !lambda 'return id(occupancy_off_latency_ui).state * 1000.0;'
+  #   lambda: |-
+  #     if (id(occupancy_on_by).state == "紅外線") {
+  #       if (id(pir_sensor_1).state || id(pir_sensor_2).state) {
+  #         return true;
+  #       } else if (!id(mmwave).state && !id(pir_sensor_1).state && !id(pir_sensor_2).state) {
+  #         return false;
+  #       } else {
+  #         return id(occupancy).state;
+  #       }
+  #     } else if (id(occupancy_on_by).state == "毫米波") {
+  #       if (id(mmwave).state) {
+  #         return true;
+  #       } else {
+  #         return false;
+  #       }
+  #     } else {
+  #       return id(occupancy).state;  // 添加这一行以确保在所有情况下都有返回值
+  #     }
+  #   on_state:
+  #     then:
+  #       - if:
+  #           condition:  # 有人，非手動，亮度不夠 開燈
+  #             lambda: 'return id(occupancy).state && !id(manual_mode).state && id(ambient_light_mode).state ;'
+  #           then:        
+  #             - light.turn_on: relay_1
+  #           else:
+  #             - light.turn_off: relay_1  
+
+
 
 sensor:
   - platform: bh1750
@@ -203,7 +236,7 @@ sensor:
     id: illuminance
     name: "illuminanc 光照度"
     update_interval: ${illuminance_update_interval}
-    icon: mdi:weather-sunny
+    device_class: "illuminance"
     filters:
       - calibrate_linear:
           method: exact
@@ -249,16 +282,22 @@ sensor:
     light:
       name: "Light 光照度"
       internal: true
+      device_class: "illuminance"
     moving_distance:
       name : "Moving Distance 動態距離"
+      device_class: "distance"
     still_distance:
       name: "Still Distance 靜態距離"
+      device_class: "distance"
     moving_energy:
       name: "Move Energy 動態量能"
+      icon: mdi:run
     still_energy:
       name: "Still Energy 靜態量能"
+      icon: mdi:meditation
     detection_distance:
       name: "Detection Distance 檢測距離"
+      device_class: "distance"
     g0:
       still_energy:
         name: g0 still energy
@@ -297,16 +336,38 @@ sensor:
         internal: true
 
   - platform: wifi_signal
-    name: "WIFI Signal"
-    update_interval: ${wifi_signal_update_interval}  
-    icon: mdi:signal
+    name: "WiFi Signal"
+    id: wifi_signal_db
+    update_interval: 30s
+    internal: true
+    entity_category: "diagnostic"
 
-switch:
-  - platform: gpio  #light
-    id: relay_1
+  - platform: copy
+    source_id: wifi_signal_db
+    icon: mdi:signal
+    name: "WiFi Signal"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+
+output:
+  - platform: gpio
     pin: 8
-    name: "Relay 1 電燈繼電器"  
-    icon: mdi:electric-switch
+    id: light_relay
+
+light:
+  - platform: binary
+    name: "Relay 1 電燈繼電器"
+    output: light_relay
+    id: relay_1
+    
+switch:
+  # - platform: gpio  #light
+  #   id: relay_1
+  #   pin: 8
+  #   name: "Relay 1 電燈繼電器"  
+  #   icon: mdi:electric-switch
 
   - platform: template
     name: "occupancy_timeout"
